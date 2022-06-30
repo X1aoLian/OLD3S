@@ -36,14 +36,14 @@ def loaddatasets():
     cifar10_original = torchvision.datasets.CIFAR10(
         root='./data',
         train=True,
-        download=False,
+        download=True,
         transform=transforms.ToTensor()
     )
 
     cifar10_color = torchvision.datasets.CIFAR10(
         root='./data',
         train=True,
-        download=False,
+        download=True,
         transform=Newfeature
     )
     x_S1 = torch.Tensor(cifar10_original.data)

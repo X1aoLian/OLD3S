@@ -8,7 +8,7 @@ from autoencoder import AutoEncoder
 from matplotlib import pyplot as plt
 import copy
 from scipy import stats
-from vae import VAE
+from vae import ConvVAE
 import torch.nn.functional as F
 
 class OLD3S:
@@ -234,6 +234,16 @@ class OLD3S:
         optimizer.zero_grad()
         loss_2 = self.SmoothL1Loss(torch.sigmoid(X), decoded)
         loss_2.backward()
+        optimizer.step()
+    def VaeReconstruction(self, model, x, optimizer):
+        kl_loss = lambda mu, logvar: -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+        recon_loss = lambda recon_x, x: F.mse_loss(recon_x, x, size_average=False)
+        recon_x, mu, logvar = model(x)
+        recon = recon_loss(recon_x, x)
+        kl = kl_loss(mu, logvar)
+        loss = recon + kl
+        optimizer.zero_grad()
+        loss.backward()
         optimizer.step()
 
     def HB_Fit(self, model, X, Y, optimizer, block_split=6):
