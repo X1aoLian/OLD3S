@@ -1,8 +1,6 @@
 import torch
 import torchvision
-from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
-from torch import nn
 from sklearn.utils import shuffle
 
 Newfeature = transforms.Compose([
@@ -45,7 +43,6 @@ def loadsvhn():
         download=True,
         transform=transforms.ToTensor()
     )
-
     svhm_color = torchvision.datasets.SVHN(
         root='./data',
         split="train",
@@ -61,3 +58,4 @@ def loadsvhn():
     y_S1, y_S2 = torch.Tensor(y_S1), torch.Tensor(y_S1)
     x_S1, y_S1 = shuffle(x_S1, y_S1, random_state=30)
     x_S2, y_S2 = shuffle(x_S2, y_S2, random_state=30)
+    return x_S1, y_S1, x_S2, y_S2
