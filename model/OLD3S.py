@@ -8,7 +8,7 @@ from autoencoder import AutoEncoder
 from matplotlib import pyplot as plt
 import copy
 from scipy import stats
-from vae import ConvVAE
+from vae import VAE
 import torch.nn.functional as F
 
 class OLD3S:
@@ -16,7 +16,7 @@ class OLD3S:
                  thre=10000, lossfunction = 'smooth'):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         print(self.device)
-        self.autoencoder = AutoEncoder().to(self.device)
+        self.autoencoder = VAE().to(self.device)
 
         self.autoencoder_2 = AutoEncoder().to(self.device)
         self.spike = spike
@@ -73,9 +73,10 @@ class OLD3S:
             y = self.label_S1[i].unsqueeze(0).long().to(self.device)
             if self.i < self.B:
 
-                encoded, decoded = self.autoencoder(x1)
+                #encoded, decoded = self.autoencoder(x1)
+                encoded, decoded, mu, logVar = self.autoencoder(x1)
                 loss_1, y_hat = self.HB_Fit(self.net_model1, encoded, y, optimizer_1)
-                self.SmoothReconstruction(x1,decoded,optimizer_2)
+                self.VaeReconstruction(x1, decoded, mu, logVar,optimizer_2)
 
                 if self.i < self.thre:
                     self.beta2 = self.beta2 + self.spike
@@ -235,13 +236,13 @@ class OLD3S:
         loss_2 = self.SmoothL1Loss(torch.sigmoid(X), decoded)
         loss_2.backward()
         optimizer.step()
-    def VaeReconstruction(self, model, x, optimizer):
-        kl_loss = lambda mu, logvar: -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
-        recon_loss = lambda recon_x, x: F.mse_loss(recon_x, x, size_average=False)
-        recon_x, mu, logvar = model(x)
-        recon = recon_loss(recon_x, x)
-        kl = kl_loss(mu, logvar)
-        loss = recon + kl
+
+    def VaeReconstruction(self, x, out, mu, logVar,  optimizer):
+        x, out, mu, logVar = x, out, mu, logVar
+        # The loss is the BCE loss combined with the KL divergence to ensure the distribution is learnt
+        kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
+        loss = F.binary_cross_entropy(out, x, size_average=False) + kl_divergence
+        # Backpropagation based on the loss
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()

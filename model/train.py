@@ -14,6 +14,7 @@ from deepFesl_nohedge import Resnet18_Cifar
 from Linear_cifar import SimpleLinear_Cifar
 from FES import FES
 from deepFesl_linear import deepFESL_linear
+from vae import VAE
 
 
 def setup_seed(seed):
@@ -60,6 +61,8 @@ def loaddatasets():
 
 if __name__ == '__main__':
     x_S1, y_S1, x_S2, y_S2 = loaddatasets()
+
+
     begin = OLD3S(x_S1, y_S1, x_S2, y_S2, 50000, 5000)
     begin.SecondPeriod()
 
