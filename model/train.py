@@ -1,7 +1,7 @@
 import random
 import numpy as np
 import argparse
-from model import OLD3S
+from model import *
 from loaddatasets import *
 
 def setup_seed(seed):
@@ -13,19 +13,20 @@ def setup_seed(seed):
 
 def main():
     parser = argparse.ArgumentParser(description="Options")
-    parser.add_argument('-DataName', action='store', dest='DataName', default='cifar')
+    parser.add_argument('-DataName', action='store', dest='DataName', default='adult')
     parser.add_argument('-FromLanguage', action='store', dest='FromLanguage', default='EN')
     parser.add_argument('-ToLanguage', action='store', dest='ToLanguage', default='FR')
     parser.add_argument('-beta', action='store', dest='beta', default=0.9)
     parser.add_argument('-eta', action='store', dest='eta', default=-0.01)
     parser.add_argument('-learningrate', action='store', dest='learningrate', default=0.01)
+    parser.add_argument('-RecLossFunc', action='store', dest='RecLossFunc', default='Smooth')
 
     args = parser.parse_args()
-    learner = OLDS(args)
+    learner = OLD3S(args)
     learner.train()
 
 
-class OLDS:
+class OLD3S:
     def __init__(self, args):
         '''
             Data is stored as list of dictionaries.
@@ -37,18 +38,30 @@ class OLDS:
         self.beta = args.beta
         self.eta = args.eta
         self.learningrate = args.learningrate
+        self.RecLossFunc = args.RecLossFunc
 
     def train(self):
         if self.datasetname == 'cifar':
-            print('trainning starts')
+            print('cifar trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadcifar()
-            train = OLD3S(x_S1, y_S1, x_S2, y_S2, 50000, 5000,'parameter_cifar')
+            train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 50000, 5000,'parameter_cifar')
             train.SecondPeriod()
         elif self.datasetname == 'svhn':
-            print('trainning starts')
+            print('svhn trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadsvhn()
-            train = OLD3S(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
+            train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
             train.SecondPeriod()
+        elif self.datasetname == 'magic':
+            print('magic trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadmagic()
+            train = OLD3S_Shallow(x_S1, y_S1, x_S2, y_S2, 19019, 1919, 10, 30, 'parameter_magic')
+            train.SecondPeriod()
+        elif self.datasetname == 'adult':
+            x_S1, y_S1, x_S2, y_S2 = loadadult()
+            train = OLD3S_Shallow(x_S1, y_S1, x_S2, y_S2, 32559, 3559, 14, 30, 'parameter_adult')
+            train.SecondPeriod()
+        else:
+            print('Choose a correct dataset name please')
         '''else:
             if self.FromLan =='EN':
                 self.samplesize = 18758
