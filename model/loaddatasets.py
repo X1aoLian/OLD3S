@@ -116,3 +116,10 @@ def loadadult():
     x_S1, y_S1 = shuffle(x_S1, y_S1, random_state=30)
     x_S2, y_S2 = shuffle(x_S2, y_S2, random_state=30)
     return x_S1, y_S1, x_S2, y_S2
+
+def loadreuter(name):
+    x_S1 = torch.Tensor(torch.load('./data/' + name +'/x_S1_pca'))
+    y_S1 = torch.Tensor(torch.load('./data/' + name +'/y_S1_multiLinear'))
+    x_S2 = torch.Tensor(torch.load('./data/' + name +'/x_S2_pca'))
+    y_S2 = torch.Tensor(torch.load('./data/' + name +'/y_S2_multiLinear'))
+    return x_S1, y_S1, x_S2, y_S2

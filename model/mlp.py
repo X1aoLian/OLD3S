@@ -19,7 +19,7 @@ class BasicBlock(nn.Module):
 
 class MLP(nn.Module):
 
-    def __init__(self, in_planes, num_classes=2):
+    def __init__(self, in_planes, num_classes = 6):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         super(MLP, self).__init__()
         self.in_planes = in_planes
@@ -45,7 +45,7 @@ class MLP(nn.Module):
     def _make_mlp1(self, in_planes):
         classifier = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(in_planes, 2),
+            nn.Linear(in_planes, self.num_classes),
 
         )
         return classifier
@@ -53,7 +53,7 @@ class MLP(nn.Module):
     def _make_mlp2(self, in_planes):
         classifier = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(in_planes, 2),
+            nn.Linear(in_planes, self.num_classes),
 
         )
         return classifier
@@ -61,7 +61,7 @@ class MLP(nn.Module):
     def _make_mlp3(self, in_planes):
         classifier = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(in_planes, 2),
+            nn.Linear(in_planes, self.num_classes),
 
         )
         return classifier
@@ -69,7 +69,7 @@ class MLP(nn.Module):
     def _make_mlp4(self, in_planes):
         classifier = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(in_planes, 2),
+            nn.Linear(in_planes, self.num_classes),
 
         )
         return classifier
@@ -77,7 +77,7 @@ class MLP(nn.Module):
     def _make_mlp5(self, in_planes):
         classifier = nn.Sequential(
             nn.ReLU(),
-            nn.Linear(in_planes, 2),
+            nn.Linear(in_planes, self.num_classes),
 
         )
         return classifier

@@ -13,14 +13,13 @@ def setup_seed(seed):
 
 def main():
     parser = argparse.ArgumentParser(description="Options")
-    parser.add_argument('-DataName', action='store', dest='DataName', default='adult')
+    parser.add_argument('-DataName', action='store', dest='DataName', default='frit')
     parser.add_argument('-FromLanguage', action='store', dest='FromLanguage', default='EN')
     parser.add_argument('-ToLanguage', action='store', dest='ToLanguage', default='FR')
     parser.add_argument('-beta', action='store', dest='beta', default=0.9)
     parser.add_argument('-eta', action='store', dest='eta', default=-0.01)
     parser.add_argument('-learningrate', action='store', dest='learningrate', default=0.01)
     parser.add_argument('-RecLossFunc', action='store', dest='RecLossFunc', default='Smooth')
-
     args = parser.parse_args()
     learner = OLD3S(args)
     learner.train()
@@ -57,43 +56,37 @@ class OLD3S:
             train = OLD3S_Shallow(x_S1, y_S1, x_S2, y_S2, 19019, 1919, 10, 30, 'parameter_magic')
             train.SecondPeriod()
         elif self.datasetname == 'adult':
+            print('adult trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadadult()
             train = OLD3S_Shallow(x_S1, y_S1, x_S2, y_S2, 32559, 3559, 14, 30, 'parameter_adult')
             train.SecondPeriod()
+        elif self.datasetname == 'enfr':
+            print('reuter-en-fr trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadreuter('EN_FR')
+            train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500, 'parameter_enfr')
+            train.SecondPeriod()
+        elif self.datasetname == 'enit':
+            print('reuter-en-it trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadreuter('EN_IT')
+            train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758, 2000, 1500, 'parameter_enit')
+            train.SecondPeriod()
+        elif self.datasetname == 'ensp':
+            print('reuter-en-sp trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadreuter('EN_SP')
+            train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758, 2000, 1000, 'parameter_ensp')
+            train.SecondPeriod()
+        elif self.datasetname == 'frit':
+            print('reuter-fr-it trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadreuter('FR_IT')
+            train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 26648, 3648, 2500, 1500, 'parameter_frit')
+            train.SecondPeriod()
+        elif self.datasetname == 'frsp':
+            print('reuter-fr-sp trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadreuter('FR_SP')
+            train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 26648, 3648, 2500, 1000, 'parameter_frsp')
+            train.SecondPeriod()
         else:
             print('Choose a correct dataset name please')
-        '''else:
-            if self.FromLan =='EN':
-                self.samplesize = 18758
-                self.overlap = 2758
-                self.dimension1 = 21531
-                self.dimension1_pca = 2000
-                if self.ToLan == 'FR':
-                    self.dimension2 = 24893
-                    self.dimension2_pca = 2500
-                elif self.ToLan == 'IT':
-                    self.dimension2 = 15506
-                    self.dimension2_pca = 1500
-                else:
-                    self.dimension2 = 11547
-                    self.dimension2_pca = 1000
-            else:
-                self.samplesize = 26648
-                self.overlap = 3648
-                self.dimension1 = 24893
-                self.dimension1_pca = 2500
-                if self.ToLan == 'IT':
-                    self.dimension2 = 15503
-                    self.dimension2_pca = 1500
-                else:
-                    self.dimension2 = 11547
-                    self.dimension2_pca = 1000
-
-            x_S1, x_S2, y_S1, y_S2 = loadreuter(self.FromLan,self.ToLan,
-                                                self.samplesize, self.dimension1, self.dimension2)
-            train = Reuter(x_S1, y_S1, x_S2, y_S2, self.samplesize, self.samplesize,
-                           self.dimension1_pca,self.dimension2_pca,self.FromLan,self.ToLan,self.beta,self.learningrate)
-            train.T_2()'''
 
 if __name__ == '__main__':
     setup_seed(30)
