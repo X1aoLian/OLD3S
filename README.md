@@ -53,7 +53,7 @@ pip install sklearn
 conda activate OLDS
 python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learningrate=0.001 -RecLossFunc='Smooth' 
 ```
-Choices of six parameters are shown as following:
+Choices of six parameters are shown as following:  
 **DataName: 'cifar'，'svhn', 'mnist', 'magic', 'adult', 'enfr', 'enit', 'ensp', 'frit', 'frsp'**
 ## Metric
 The metric formula can be found in ACR.py where f_star = f<sup>*</sup>.
