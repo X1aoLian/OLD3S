@@ -45,7 +45,6 @@ pip install torchvision
 pip install pandas
 pip install matplotlib
 pip install sklearn
-
 ```
 
 ## Run
@@ -53,5 +52,11 @@ pip install sklearn
 ```
 conda activate OLDS
 python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learningrate=0.001 -RecLossFunc='Smooth' 
+```
+
+## Metric
+The metric formula can be found in ACR.py
+```
+acr = mean([f^* - i for i in accuracy])
 ```
 
