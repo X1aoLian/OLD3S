@@ -1,77 +1,87 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from loaddatasets import loadcifar
 
+from torch import nn
+import torch
+import torch.nn.functional as F
 
-'''class VAE(nn.Module):
-    def __init__(self, imgChannels=3, featureDim=32*32, zDim=32*32):
+
+class VAE(nn.Module):
+
+    def __init__(self, input_dim, h_dim, z_dim):
+        # 调用父类方法初始化模块的state
         super(VAE, self).__init__()
 
-        # Initializing the 2 convolutional layers and 2 full-connected layers for the encoder
-        self.encConv1 = nn.Conv2d(imgChannels, 12, 3, stride = 1,padding=1, bias=False )
-        self.encConv2 = nn.Conv2d(12, 1, 3, stride = 1,padding=1, bias=False )
-        self.encConv3 = nn.Conv2d(1, 1, 3, stride=1, padding=1, bias=False)
-        self.encFC1 = nn.Linear(featureDim, zDim)
-        self.encFC2 = nn.Linear(featureDim, zDim)
-        self.bn1 = nn.BatchNorm2d(12)
-        self.bn2 = nn.BatchNorm2d(3)
-        self.bn3 = nn.BatchNorm2d(1)
-        # Initializing the fully-connected layer and 2 convolutional layers for decoder
-        self.decFC1 = nn.Linear(zDim, featureDim)
-        self.decConv1 = nn.ConvTranspose2d(1, 12, kernel_size=3, stride=1, padding=1)
-        self.decConv2 = nn.ConvTranspose2d(12, 12, kernel_size=3, stride=1, padding=1)
-        self.decConv3 = nn.ConvTranspose2d(12, 3, kernel_size=3, stride=1, padding=1, bias=False)
+        self.input_dim = input_dim
+        self.h_dim = h_dim
+        self.z_dim = z_dim
 
+        # 编码器 ： [b, input_dim] => [b, z_dim]
+        self.fc1 = nn.Linear(input_dim, h_dim)  # 第一个全连接层
+        self.fc2 = nn.Linear(h_dim, z_dim)  # mu
+        self.fc3 = nn.Linear(h_dim, z_dim)  # log_var
 
-
-    def encoder(self, x):
-
-        # Input is fed into 2 convolutional layers sequentially
-        # The output feature map are fed into 2 fully-connected layers to predict mean (mu) and variance (logVar)
-        # Mu and logVar are used for generating middle representation z and KL divergence loss
-
-        x = F.relu(self.encConv1(x))
-
-        x = F.relu(self.encConv2(x))
-
-        x = self.encConv3(x)
-
-        x1 = x.view(-1,32*32)
-        mu = self.encFC1(x1)
-        logVar = self.encFC2(x1)
-        return mu, logVar, x
-
-    def reparameterize(self, mu, logVar):
-
-        #Reparameterization takes in the input mu and logVar and sample the mu + std * eps
-        std = torch.exp(logVar/2)
-        eps = torch.randn_like(std)
-        return mu + std * eps
-
-    def decoder(self, z):
-
-        # z is fed back into a fully-connected layers and then into two transpose convolutional layers
-        # The generated output is the same size of the original input
-        x = F.relu(self.decFC1(z))
-        x = x.view(-1, 1, 32, 32)
-        x = F.relu(self.decConv1(x))
-        x = F.relu(self.decConv2(x))
-        x = torch.sigmoid(self.decConv3(x))
-        return x
+        # 解码器 ： [b, z_dim] => [b, input_dim]
+        self.fc4 = nn.Linear(z_dim, h_dim)
+        self.fc5 = nn.Linear(h_dim, input_dim)
 
     def forward(self, x):
+        """
+        向前传播部分, 在model_name(inputs)时自动调用
+        :param x: the input of our training model [b, batch_size, 1, 28, 28]
+        :return: the result of our training model
+        """
+        batch_size = x.shape[0]  # 每一批含有的样本的个数
+        # flatten  [b, batch_size, 1, 28, 28] => [b, batch_size, 784]
+        # tensor.view()方法可以调整tensor的形状，但必须保证调整前后元素总数一致。view不会修改自身的数据，
+        # 返回的新tensor与原tensor共享内存，即更改一个，另一个也随之改变。
+        x = x.view(batch_size, self.input_dim)  # 一行代表一个样本
 
-        # The entire pipeline of the VAE: encoder -> reparameterization -> decoder
-        # output, mu, and logVar are returned for loss computation
-        mu, logVar,x = self.encoder(x)
-        z = self.reparameterize(mu, logVar)
+        # encoder
+        mu, log_var = self.encode(x)
+        # reparameterization trick
+        sampled_z = self.reparameterization(mu, log_var)
+        # decoder
+        x_hat = self.decode(sampled_z)
+        # reshape
 
-        out = self.decoder(z)
-        mid = z.view(-1,1,32,32)
-        return mid , out, mu, logVar'''
+        return sampled_z, x_hat, mu, log_var
 
+    def encode(self, x):
+        """
+        encoding part
+        :param x: input image
+        :return: mu and log_var
+        """
+        h = F.relu(self.fc1(x))
+        mu = self.fc2(h)
+        log_var = self.fc3(h)
+
+        return mu, log_var
+
+    def reparameterization(self, mu, log_var):
+        """
+        Given a standard gaussian distribution epsilon ~ N(0,1),
+        we can sample the random variable z as per z = mu + sigma * epsilon
+        :param mu:
+        :param log_var:
+        :return: sampled z
+        """
+        sigma = torch.exp(log_var * 0.5)
+        eps = torch.randn_like(sigma)
+        return mu + sigma * eps  # 这里的“*”是点乘的意思
+
+    def decode(self, z):
+        """
+        Given a sampled z, decode it back to image
+        :param z:
+        :return:
+        """
+        h = F.relu(self.fc4(z))
+        x_hat = torch.sigmoid(self.fc5(h))  # 图片数值取值为[0,1]，不宜用ReLU
+        return x_hat
 
 latent_dim = 32
 inter_dim = 128
@@ -141,7 +151,6 @@ class ConvVAE(nn.Module):
     def forward(self, x):
         batch = x.size(0)
         x = self.encoder(x)
-        mid = x.reshape(1,1,32,32)
 
         x = self.fc1(x.view(batch, -1))
 
@@ -156,7 +165,7 @@ class ConvVAE(nn.Module):
 
         recon_x = self.decoder(decode.view(batch, *mid_dim))
 
-        return mid, recon_x, mu, logvar
+        return z, recon_x, mu, logvar
 
 
 '''print('cifar trainning starts')

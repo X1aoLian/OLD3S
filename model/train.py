@@ -3,6 +3,7 @@ import numpy as np
 import argparse
 from model import *
 from loaddatasets import *
+from test import *
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -13,9 +14,8 @@ def setup_seed(seed):
 
 def main():
     parser = argparse.ArgumentParser(description="Options")
-    parser.add_argument('-DataName', action='store', dest='DataName', default='frit')
-    parser.add_argument('-FromLanguage', action='store', dest='FromLanguage', default='EN')
-    parser.add_argument('-ToLanguage', action='store', dest='ToLanguage', default='FR')
+    parser.add_argument('-DataName', action='store', dest='DataName', default='svhn')
+    parser.add_argument('-AutoEncoder', action='store', dest='AutoEncoder', default='VAE')
     parser.add_argument('-beta', action='store', dest='beta', default=0.9)
     parser.add_argument('-eta', action='store', dest='eta', default=-0.01)
     parser.add_argument('-learningrate', action='store', dest='learningrate', default=0.01)
@@ -32,8 +32,7 @@ class OLD3S:
             Label is stored as list of scalars.
         '''
         self.datasetname = args.DataName
-        self.FromLan = args.FromLanguage
-        self.ToLan = args.ToLanguage
+        self.autoencoder = args.AutoEncoder
         self.beta = args.beta
         self.eta = args.eta
         self.learningrate = args.learningrate
@@ -48,7 +47,10 @@ class OLD3S:
         elif self.datasetname == 'svhn':
             print('svhn trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadsvhn()
-            train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
+            if self.autoencoder == 'AE':
+                train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
+            else:
+                train = OLD3S_Deep_VAE(x_S1, y_S1, x_S2, y_S2, 73257, 7257, 'parameter_svhn')
             train.SecondPeriod()
         elif self.datasetname == 'magic':
             print('magic trainning starts')
