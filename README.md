@@ -60,4 +60,5 @@ The metric formula can be found in ACR.py
 f<sup>*</sup> = max(accuracy_list)
 acr = mean([f<sup>*</sup> - i for i in accuracy_list])
 ```
+n<sup>2</sup>=n
 
