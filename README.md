@@ -57,6 +57,7 @@ python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learni
 ## Metric
 The metric formula can be found in ACR.py
 ```
+$f^*$
 acr = mean([f^* - i for i in accuracy])
 ```
 
