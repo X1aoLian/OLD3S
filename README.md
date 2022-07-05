@@ -55,10 +55,10 @@ python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learni
 ```
 
 ## Metric
-The metric formula can be found in ACR.py
+The metric formula can be found in ACR.py where f_star = f<sup>*</sup>.
 ```
-f<sup>*</sup> = max(accuracy_list)
-acr = mean([f<sup>*</sup> - i for i in accuracy_list])
+f_star = max(accuracy_list)
+acr = mean([f_star - i for i in accuracy_list])
 ```
-n<sup>2</sup>=n
+
 
