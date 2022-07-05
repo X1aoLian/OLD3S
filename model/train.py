@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 from model import *
 from loaddatasets import *
-from test import *
+from model_vae import *
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -42,7 +42,7 @@ class OLD3S:
         if self.datasetname == 'cifar':
             print('cifar trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadcifar()
-            train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 50000, 5000,'parameter_cifar')
+            train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 50000, 5000,'parameter_cifar')
             train.SecondPeriod()
         elif self.datasetname == 'svhn':
             print('svhn trainning starts')
@@ -50,7 +50,7 @@ class OLD3S:
             if self.autoencoder == 'AE':
                 train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
             else:
-                train = OLD3S_Deep_VAE(x_S1, y_S1, x_S2, y_S2, 73257, 7257, 'parameter_svhn')
+                train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 73257, 7257, 'parameter_svhn')
             train.SecondPeriod()
         elif self.datasetname == 'magic':
             print('magic trainning starts')

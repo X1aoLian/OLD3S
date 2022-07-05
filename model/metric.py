@@ -29,9 +29,9 @@ def plot_reuter(y_axi_1, x, path, a, b):
 
 
 def ACR(accuracy):
-    x = max(accuracy)
-    res = mean([x - i for i in accuracy])
-    print(res)
+    f_star = max(accuracy)
+    acr = mean([f_star - i for i in accuracy])
+    print(acr)
 
 
 def STD(filternumber, elements,smoothlist):

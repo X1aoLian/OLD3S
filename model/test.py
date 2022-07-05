@@ -344,8 +344,134 @@ class OLD3S_Deep_VAE:
         return output, Loss_sum
 
 
+def train():
+    epochs = 100
+    batch_size = 512
 
-'''print('svhn trainning starts')
-x_S1, y_S1, x_S2, y_S2 = loadsvhn()
-train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
-train.SecondPeriod()'''
+    best_loss = 1e9
+    best_epoch = 0
+
+    valid_losses = []
+    train_losses = []
+
+    transform = transforms.Compose([
+        transforms.ToTensor()
+    ])
+
+    pokemon_train = torchvision.datasets.CIFAR10(
+            root='./data',
+            train=True,
+            download=True,
+            transform=transform
+        )
+    pokemon_valid = torchvision.datasets.CIFAR10(
+            root='./data',
+            train=False,
+            download=True,
+            transform=transform)
+    kl_loss = lambda mu, logvar: -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
+    recon_loss = lambda recon_x, x: F.mse_loss(recon_x, x, size_average=False)
+
+    train_loader = DataLoader(pokemon_train, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(pokemon_valid, batch_size=batch_size, shuffle=False)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    model = ConvVAE()
+    model.to(device)
+
+    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+    for epoch in range(epochs):
+        print(f"Epoch {epoch}")
+        model.train()
+        train_loss = 0.
+        train_num = len(train_loader.dataset)
+
+        for idx, (x, label) in enumerate(train_loader):
+
+            batch = x.size(0)
+            x = x.to(device)
+            recon_x, mu, logvar = model(x)
+            recon = recon_loss(recon_x, x)
+            kl = kl_loss(mu, logvar)
+
+            loss = recon + kl
+            train_loss += loss.item()
+            loss = loss / batch
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            if idx % 100 == 0:
+                print(f"Training loss {loss: .3f} \t Recon {recon / batch: .3f} \t KL {kl / batch: .3f} in Step {idx}")
+
+        train_losses.append(train_loss / train_num)
+
+    valid_loss = 0.
+    valid_recon = 0.
+    valid_kl = 0.
+    valid_num = len(test_loader.dataset)
+    model.eval()
+    with torch.no_grad():
+        for idx, (x, label) in enumerate(test_loader):
+            x = x.to(device)
+            recon_x, mu, logvar = model(x)
+            recon = recon_loss(recon_x, x)
+            kl = kl_loss(mu, logvar)
+            loss = recon + kl
+            valid_loss += loss.item()
+            valid_kl += kl.item()
+            valid_recon += recon.item()
+
+        valid_losses.append(valid_loss / valid_num)
+
+        print(
+            f"Valid loss {valid_loss / valid_num: .3f} \t Recon {valid_recon / valid_num: .3f} \t KL {valid_kl / valid_num: .3f} in epoch {epoch}")
+
+        if valid_loss < best_loss:
+            best_loss = valid_loss
+            best_epoch = epoch
+
+            torch.save(model.state_dict(), 'best_model_pokemon')
+            print("Model saved")
+
+def test():
+
+
+    transform = transforms.Compose([
+        transforms.ToTensor()
+    ])
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    pokemon_valid = torchvision.datasets.CIFAR10(
+            root='./data',
+            train=False,
+            download=True,
+            transform=transform)
+    test_loader = DataLoader(pokemon_valid, batch_size=1, shuffle=False)
+
+    state = torch.load('best_model_pokemon')
+    model = ConvVAE()
+    model.load_state_dict(state)
+
+
+    model.eval()
+
+    to_pil_image = transforms.ToPILImage()
+    cnt = 0
+    for image,label in test_loader:
+        if cnt>=3:      # 只显示3张图片
+            break
+        print(label)    # 显示label
+        recon_x, mu, logvar = model(image)
+
+        # 方法1：Image.show()
+        # transforms.ToPILImage()中有一句
+        # npimg = np.transpose(pic.numpy(), (1, 2, 0))
+        # 因此pic只能是3-D Tensor，所以要用image[0]消去batch那一维
+        img = to_pil_image(image[0])
+        img.show()
+        rec = to_pil_image(recon_x[0])
+        rec.show()
+        cnt += 1
