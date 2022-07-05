@@ -36,6 +36,7 @@ where the data streams are described by feature spaces that constantly evolve.
     Both theoretical analyses and extensive experiments benchmarked on
     real-world datasets including images and natural languages
     substantiate the viability and effectiveness of our proposal.
+    
 ## Requirements
 This code was tested on Windows and macOS
 ```
@@ -48,12 +49,12 @@ pip install sklearn
 ```
 
 ## Run
-
 ```
 conda activate OLDS
 python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learningrate=0.001 -RecLossFunc='Smooth' 
 ```
-
+Choices of six parameters are shown as following:
+**DataName: 'cifar'，'svhn', 'mnist', 'magic', 'adult', 'enfr', 'enit', 'ensp', 'frit', 'frsp'**
 ## Metric
 The metric formula can be found in ACR.py where f_star = f<sup>*</sup>.
 ```
