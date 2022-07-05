@@ -52,7 +52,6 @@ pip install sklearn
 
 ```
 conda activate OLDS
-python main.py -DataName=cifar -beta=0.9 -learningrate=0.01
-python main.py -DataName=reuter -FromLanguage=EN -ToLanguage=FR -beta=0.9 -learningrate=0.01
+python train.py -DataName= -AutoEncoder= -beta= -eta= -learningrate= -RecLossFunc= 
 ```
 
