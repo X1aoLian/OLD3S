@@ -52,6 +52,6 @@ pip install sklearn
 
 ```
 conda activate OLDS
-python train.py -DataName= -AutoEncoder= -beta= -eta= -learningrate= -RecLossFunc= 
+python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learningrate=0.001 -RecLossFunc='Smooth' 
 ```
 
