@@ -49,13 +49,14 @@ pip install sklearn
 ```
 
 ## Run
+Default parameters are shown as following:
 ```
 conda activate OLDS
 python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learningrate=0.001 -RecLossFunc='Smooth' 
 ```
 Choices of DataName, AutoEncoder and RecLossFunc are shown as following:  
-**DataName: 'cifar'，'svhn', 'mnist', 'magic', 'adult', 'enfr', 'enit', 'ensp', 'frit', 'frsp'.**
-**AutoEncoder: 'AE', 'VAE'.**
+**DataName: 'cifar'，'svhn', 'mnist', 'magic', 'adult', 'enfr', 'enit', 'ensp', 'frit', 'frsp'.**  
+**AutoEncoder: 'AE', 'VAE'.**  
 **RecLossFunc: 'BCE', 'Smooth', 'KL'.**
 ****
 ## Metric
