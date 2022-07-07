@@ -40,12 +40,8 @@ def loadcifar():
     return x_S1, y_S1, x_S2, y_S2
 
 def loadsvhn():
-    svhm_original = torchvision.datasets.SVHN(
-        root='./data',
-        split="train",
-        download=True,
-        transform=transforms.ToTensor()
-    )
+    svhm_original =  torchvision.datasets.SVHN('./data', split='train', download=False,
+                               transform=transforms.Compose([ transforms.ToTensor()]))
     svhm_color = torchvision.datasets.SVHN(
         root='./data',
         split="train",
@@ -123,3 +119,32 @@ def loadreuter(name):
     x_S2 = torch.Tensor(torch.load('./data/' + name +'/x_S2_pca'))
     y_S2 = torch.Tensor(torch.load('./data/' + name +'/y_S2_multiLinear'))
     return x_S1, y_S1, x_S2, y_S2
+
+def loadmnist():
+    mnist_original = torchvision.datasets.FashionMNIST(
+        root='./data',
+        download=True,
+        train=True,
+        # Simply put the size you want in Resize (can be tuple for height, width)
+        transform=torchvision.transforms.Compose(
+            [torchvision.transforms.ToTensor()]
+        ),
+    )
+    mnist_color = torchvision.datasets.FashionMNIST(
+        root='./data',
+        train=True,
+        download=True,
+        transform=torchvision.transforms.Compose(
+            [
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ColorJitter(hue=0.3),
+                torchvision.transforms.ToTensor()]
+        ),
+    )
+    x_S1 = mnist_original.data
+    x_S2 = mnist_color.data
+    y_S1, y_S2 = mnist_original.targets, mnist_color.targets
+    x_S1, y_S1 = shuffle(x_S1, y_S1, random_state=1000)
+    x_S2, y_S2 = shuffle(x_S2, y_S2, random_state=1000)
+    return x_S1, y_S1, x_S2, y_S2
+

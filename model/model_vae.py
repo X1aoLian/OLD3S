@@ -8,12 +8,15 @@ from autoencoder import *
 from loaddatasets import *
 from mlp import MLP
 from vae import *
+from test import DCVAE
 
-
-
+def normal(t):
+    mean, std, var = torch.mean(t), torch.std(t), torch.var(t)
+    t = (t - mean) / std
+    return t
 
 class OLD3S_Shallow_VAE:
-    def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, path, lr=0.01, b=0.9, eta=-0.01, s=0.008, m=0.9,
+    def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, path, lr=0.001, b=0.9, eta=-0.001, s=0.008, m=0.9,
                  spike=9e-5, thre=10000, RecLossFunc='Smooth'):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.spike = spike
@@ -53,25 +56,30 @@ class OLD3S_Shallow_VAE:
         self.cl_1 = []
         self.cl_2 = []
 
+        state_1 = torch.load('best_model_svhn')
+        state_2 = torch.load('best_model_svhn_2')
+        self.autoencoder = DCVAE(32, hidden_size=1024, latent_size=100, image_channels=3).to(self.device)
+        self.autoencoder_2 = DCVAE(32, hidden_size=1024, latent_size=100, image_channels=3).to(self.device)
+        self.autoencoder.load_state_dict(state_1)
+        self.autoencoder_2.load_state_dict(state_2)
+
     def FirstPeriod(self):
 
         data1 = self.data_S1
         data2 = self.data_S2[self.B:]
         #self.net_model1 = Dynamic_ResNet18().to(self.device)
-        self.net_model1 = MLP(128,10).to(self.device)
-        self.autoencoder = ConvVAE().to(self.device)
-        self.autoencoder_2 = AutoEncoder_Deep().to(self.device)
-        optimizer_1 = torch.optim.Adam(self.net_model1.parameters(), lr=0.001)
-        optimizer_2 = torch.optim.Adam(self.autoencoder.parameters(), lr=0.001)
-        state = torch.load('best_model_pokemon')
+        self.net_model1 = MLP(100,10).to(self.device)
 
-        self.autoencoder.load_state_dict(state)
 
         self.autoencoder.eval()
+        optimizer_1 = torch.optim.Adam(self.net_model1.parameters(), lr=0.001)
+        optimizer_2 = torch.optim.Adam(self.autoencoder.parameters(), lr=0.001)
+
         for (i, x) in enumerate(data1):
             self.i = i
-            x1 = x.unsqueeze(0).float().to(self.device)
 
+            x1 = x.unsqueeze(0).float().to(self.device)
+            x1 = normal(x1)
             self.i = i
             y = self.label_S1[i].unsqueeze(0).long().to(self.device)
             if self.i < self.B:
@@ -79,39 +87,35 @@ class OLD3S_Shallow_VAE:
                 encoded, decoded, mu, logVar = self.autoencoder(x1)
                 y_hat, loss_1 = self.HB_Fit(self.net_model1, encoded, y, optimizer_1)
                 optimizer_2.zero_grad()
-
-                kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
-                loss = F.mse_loss(decoded, x1, size_average=False) + kl_divergence
-
+                CE = F.binary_cross_entropy(decoded, x1, reduction='sum')
+                KLD = -0.5 * torch.sum(1 + logVar - mu.pow(2) - logVar.exp())
+                loss = CE +KLD
                 # Backpropagation based on the loss
                 loss.backward(retain_graph=True)
                 optimizer_2.step()
-
-
-
-
                 if self.i < self.thre:
                     self.beta2 = self.beta2 + self.spike
                     self.beta1 = 1 - self.beta2
             else:
                 x2 = data2[self.i - self.B].unsqueeze(0).float().to(self.device)
+                x2 = normal(x2)
                 if i == self.B:
                     self.net_model2 = copy.deepcopy(self.net_model1)
                     torch.save(self.net_model1.state_dict(), './data/' + self.path + '/net_model1.pth')
-                    optimizer_1_1 = torch.optim.SGD(self.net_model1.parameters(), lr=self.lr)
-                    optimizer_1_2 = torch.optim.SGD(self.net_model2.parameters(), lr=self.lr)
+                    optimizer_1_1 = torch.optim.Adam(self.net_model1.parameters(), lr=self.lr)
+                    optimizer_1_2 = torch.optim.Adam(self.net_model2.parameters(), lr=self.lr)
                     # optimizer_2_1 = torch.optim.SGD(self.autoencoder.parameters(), lr=0.02)
-                    optimizer_2_2 = torch.optim.SGD(self.autoencoder_2.parameters(), lr=0.08)
-
-                encoded_1, decoded_1 = self.autoencoder(x1)
-                encoded_2, decoded_2 = self.autoencoder_2(x2)
-                loss_1_1, y_hat_1 = self.HB_Fit(self.net_model1, encoded_1, y, optimizer_1_1)
-                loss_1_2, y_hat_2 = self.HB_Fit(self.net_model2, encoded_2, y, optimizer_1_2)
+                    optimizer_2_2 = torch.optim.Adam(self.autoencoder_2.parameters(), lr=0.001)
+                self.autoencoder.eval()
+                encoded_1, decoded_1, mu_1, logVar_1 = self.autoencoder(x1)
+                encoded_2, decoded_2, mu_2, logVar_2 = self.autoencoder_2(x2)
+                y_hat_1, loss_1_1 = self.HB_Fit(self.net_model1, encoded_1, y, optimizer_1_1)
+                y_hat_2, loss_1_2 = self.HB_Fit(self.net_model2, encoded_2, y, optimizer_1_2)
                 y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
 
                 self.cl_1.append(loss_1_1)
                 self.cl_2.append(loss_1_2)
-                if len(self.cl_1) == 100:
+                if len(self.cl_1) == 200:
                     self.cl_1.pop(0)
                     self.cl_2.pop(0)
                 try:
@@ -123,7 +127,9 @@ class OLD3S_Shallow_VAE:
                 self.a_2 = 1 - self.a_1
 
                 optimizer_2_2.zero_grad()
-                loss_2_1 = self.RecLossFunc(torch.sigmoid(x2), decoded_2)
+                CE = F.binary_cross_entropy(decoded_2, x2, reduction='sum')
+                KLD = -0.5 * torch.sum(1 + logVar_2 - mu_2.pow(2) - logVar_2.exp())
+                loss_2_1 = CE + KLD
                 loss_2_2 = self.RecLossFunc(encoded_2, encoded_1)
                 loss_2 = loss_2_1 + loss_2_2
                 loss_2.backward(retain_graph=True)
@@ -146,34 +152,41 @@ class OLD3S_Shallow_VAE:
 
     def SecondPeriod(self):
         print("use FirstPeriod when i<T1 ")
-        self.FirstPeriod()
+        #self.FirstPeriod()
+
         self.correct = 0
         data2 = self.data_S2[:self.B]
         net_model1 = self.loadmodel('./data/' + self.path + '/net_model1.pth')
         net_model2 = self.loadmodel('./data/' + self.path + '/net_model2.pth')
-        optimizer_3 = torch.optim.SGD(net_model1.parameters(), lr=self.lr)
-        optimizer_4 = torch.optim.SGD(net_model2.parameters(), lr=self.lr)
-        optimizer_5 = torch.optim.SGD(self.autoencoder_2.parameters(), lr=self.lr)
+        optimizer_3 = torch.optim.Adam(net_model1.parameters(), lr=0.001)
+        optimizer_4 = torch.optim.Adam(net_model2.parameters(), lr=0.001)
+        optimizer_5 = torch.optim.Adam(self.autoencoder_2.parameters(), lr=self.lr)
 
-        self.a_1 = 0.2
-        self.a_2 = 0.8
+        self.a_1 = 0.8
+        self.a_2 = 0.2
         self.cl_1 = []
         self.cl_2 = []
         for (i, x) in enumerate(data2):
             x = x.unsqueeze(0).float().to(self.device)
+            x = normal(x)
             y = self.label_S2[i].unsqueeze(0).long().to(self.device)
-            encoded, decoded = self.autoencoder_2(x)
+            encoded, decoded, mu, logVar = self.autoencoder_2(x)
+
             optimizer_5.zero_grad()
-            loss_4, y_hat_2 = self.HB_Fit(net_model2, encoded, y, optimizer_4)
-            loss_3, y_hat_1 = self.HB_Fit(net_model1, encoded, y, optimizer_3)
-            loss_5 = self.RecLossFunc(torch.sigmoid(x), decoded)
-            loss_5.backward()
+            y_hat_2, loss_2  = self.HB_Fit(net_model2, encoded, y, optimizer_4)
+            y_hat_1, loss_1  = self.HB_Fit(net_model1, encoded, y, optimizer_3)
+            CE = F.binary_cross_entropy(decoded, x, reduction='sum')
+            KLD = -0.5 * torch.sum(1 + logVar - mu.pow(2) - logVar.exp())
+
+            loss_autoencoder = CE + KLD
+            loss_autoencoder.backward()
             optimizer_5.step()
             y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
-
-            self.cl_1.append(loss_3)
-            self.cl_2.append(loss_4)
-            if len(self.cl_1) == 100:
+            print(y_hat_1)
+            print(y_hat_2)
+            self.cl_1.append(loss_1)
+            self.cl_2.append(loss_2)
+            if len(self.cl_1) == 200:
                 self.cl_1.pop(0)
                 self.cl_2.pop(0)
             try:
@@ -197,7 +210,7 @@ class OLD3S_Shallow_VAE:
                 self.correct = 0
                 print("Accuracy: ", self.accuracy)
 
-        torch.save(self.Accuracy, './data/' + self.path + '/Accuracy')
+        #torch.save(self.Accuracy, './data/' + self.path + '/Accuracy')
 
     def zero_grad(self, model):
         for child in model.children():
@@ -216,7 +229,7 @@ class OLD3S_Shallow_VAE:
             print('Enter correct loss function name!')
 
     def loadmodel(self, path):
-        net_model = Dynamic_ResNet18().to(self.device)
+        net_model = MLP(100,10).to(self.device)
         pretrain_dict = torch.load(path)
         model_dict = net_model.state_dict()
         pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict}
@@ -225,57 +238,7 @@ class OLD3S_Shallow_VAE:
         net_model.to(self.device)
         return net_model
 
-    def VaeReconstruction(self, x, out, mu, logVar, optimizer):
-        x, out, mu, logVar = x, out, mu, logVar
-        logVar = torch.sigmoid(logVar)
-        #mu = torch.sigmoid(mu)
-        #optimizer.zero_grad()
-        # The loss is the BCE loss combined with the KL divergence to ensure the distribution is learnt
-        kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
 
-        loss = F.binary_cross_entropy(out, x, size_average=False) + kl_divergence
-        # Backpropagation based on the loss
-
-        loss.backward(retain_graph=True)
-        optimizer.step()
-
-    '''def HB_Fit(self, model, X, Y, optimizer, block_split=6):
-        predictions_per_layer = model.forward(X)
-        losses_per_layer = []
-        for out in predictions_per_layer:
-            loss = self.CELoss(out, Y)
-            losses_per_layer.append(loss)
-        output = torch.empty_like(predictions_per_layer[0])
-        for i, out in enumerate(predictions_per_layer):
-            output += self.alpha1[i] * out
-        for i in range(self.num_block):
-            if i < block_split:
-                if i == 0:
-                    alpha_sum_1 = self.alpha1[i]
-                else:
-                    alpha_sum_1 += self.alpha1[i]
-            else:
-                if i == block_split:
-                    alpha_sum_2 = self.alpha1[i]
-                else:
-                    alpha_sum_2 += self.alpha1[i]
-        Loss_sum = torch.zeros_like(losses_per_layer[0])
-        for i, loss in enumerate(losses_per_layer):
-            if i < block_split:
-                loss_ = (self.alpha1[i] / alpha_sum_1) * self.beta1 * loss
-            else:
-                loss_ = (self.alpha1[i] / alpha_sum_2) * self.beta2 * loss
-            Loss_sum += loss_
-        optimizer.zero_grad()
-        Loss_sum.backward(retain_graph=True)
-        optimizer.step()
-        for i in range(len(losses_per_layer)):
-            self.alpha1[i] *= torch.pow(self.b, losses_per_layer[i])
-            self.alpha1[i] = torch.max(self.alpha1[i], self.s / self.num_block)
-            self.alpha1[i] = torch.min(self.alpha1[i], self.m)
-        z_t = torch.sum(self.alpha1)
-        self.alpha1 = Parameter(self.alpha1 / z_t, requires_grad=False).to(self.device)
-        return Loss_sum, output'''
     def HB_Fit(self, model, X, Y, optimizer):  # hedge backpropagation
         predictions_per_layer = model.forward(X)
 
@@ -318,7 +281,8 @@ class OLD3S_Shallow_VAE:
         return output, Loss_sum
 
 class OLD3S_Reuter_VAE:
-    def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, dimension1, dimension2,  path,  lr=0.001, b=0.9,
+    def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, dimension1, dimension2, hidden_size,
+                 latent_size, classes, path,  lr=0.001, b=0.9,
                  eta=-0.05, s=0.008, m=0.99, RecLossFunc='BCE'):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.correct = 0
@@ -334,6 +298,9 @@ class OLD3S_Reuter_VAE:
         self.y_S2 = label_S2
         self.dimension1 = dimension1
         self.dimension2 = dimension2
+        self.hidden_size = hidden_size
+        self.latent_size = latent_size
+        self.classes = classes
         self.b = Parameter(torch.tensor(b), requires_grad=False).to(self.device)
         self.eta = Parameter(torch.tensor(eta), requires_grad=False).to(self.device)
         self.s = Parameter(torch.tensor(s), requires_grad=False).to(self.device)
@@ -350,27 +317,33 @@ class OLD3S_Reuter_VAE:
         self.cl_2 = []
         self.alpha = Parameter(torch.Tensor(5).fill_(1 / 5), requires_grad=False).to(
             self.device)
-        self.autoencoder_1 = VAE(self.dimension1, 1024,20).to(self.device)
-        self.autoencoder_2 = VAE(self.dimension2, 1024,20).to(self.device)
+        state = torch.load('best_model_mnist')
+        self.autoencoder_1 = VAE(self.dimension1, self.hidden_size,self.latent_size).to(self.device)
+        self.autoencoder_1.load_state_dict(state)
+        self.autoencoder_2 = VAE(self.dimension2, self.hidden_size,self.latent_size).to(self.device)
 
     def FirstPeriod(self):
-        classifier_1 = MLP(20,6).to(self.device)
-        optimizer_classifier_1 = torch.optim.Adam(classifier_1.parameters(),0.001)
+        self.autoencoder_1.eval()
+        classifier_1 = MLP(self.latent_size,self.classes).to(self.device)
 
-        optimizer_autoencoder_1 = torch.optim.Adam(self.autoencoder_1.parameters(), 0.0001)
+        optimizer_classifier_1 = torch.optim.Adam(classifier_1.parameters(),self.lr)
+
+        optimizer_autoencoder_1 = torch.optim.Adam(self.autoencoder_1.parameters(), self.lr)
         # eta = -8 * math.sqrt(1 / math.log(self.t))
 
         for (i, x) in enumerate(self.x_S1):
 
             self.i = i
             x1 = x.unsqueeze(0).float().to(self.device)
-            y1 = self.y_S1[i].long().to(self.device)
+            x1 = normal(x1)
+            y1 = self.y_S1[i].unsqueeze(0).long().to(self.device)
 
             if self.i < self.B:  # Before evolve
                 encoded, decoded, mu, logVar = self.autoencoder_1(x1)
+
                 y_hat, loss_1 = self.HB_Fit(classifier_1, encoded, y1, optimizer_classifier_1)
 
-                loss_2 = self.VAE_Loss(logVar, mu, decoded,x1,optimizer_autoencoder_1)
+                loss_2 = self.VAE_Loss(logVar, mu, decoded, x1,optimizer_autoencoder_1)
 
             else:
                 x2 = self.x_S2[self.i].unsqueeze(0).float().to(self.device)
@@ -532,7 +505,8 @@ class OLD3S_Reuter_VAE:
     def VAE_Loss(self, logVar, mu, decoded,x,optimizer):
         optimizer.zero_grad()
         kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
-        loss = F.binary_cross_entropy(decoded,x, size_average=False) + kl_divergence
+        ce = F.binary_cross_entropy(decoded.reshape(1,28,28),x, size_average=False)
+        loss = ce + kl_divergence
         # Backpropagation based on the loss
         loss.backward(retain_graph=True)
         optimizer.step()
@@ -844,4 +818,272 @@ class OLD3S_Deep_VAE:
             self.alpha1[i] = torch.min(self.alpha1[i], self.m)
         z_t = torch.sum(self.alpha1)
         self.alpha1 = Parameter(self.alpha1 / z_t, requires_grad=False).to(self.device)
+        return output, Loss_sum
+
+class OLD3S_Mnist_VAE:
+    def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, dimension1, dimension2, hidden_size,
+                 latent_size, classes, path,  lr=0.001, b=0.9,
+                 eta=-0.05, s=0.008, m=0.99, RecLossFunc='BCE'):
+        self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        self.correct = 0
+        self.accuracy = 0
+        self.lr = lr
+        self.T1 = T1
+        self.t = t
+        self.B = self.T1 - self.t
+        self.path = path
+        self.x_S1 = data_S1
+        self.y_S1 = label_S1
+        self.x_S2 = data_S2
+        self.y_S2 = label_S2
+        self.dimension1 = dimension1
+        self.dimension2 = dimension2
+        self.hidden_size = hidden_size
+        self.latent_size = latent_size
+        self.classes = classes
+        self.b = Parameter(torch.tensor(b), requires_grad=False).to(self.device)
+        self.eta = Parameter(torch.tensor(eta), requires_grad=False).to(self.device)
+        self.s = Parameter(torch.tensor(s), requires_grad=False).to(self.device)
+        self.m = Parameter(torch.tensor(m), requires_grad=False).to(self.device)
+        self.CELoss = nn.CrossEntropyLoss()
+        self.BCELoss = nn.BCELoss()
+        self.SmoothL1Loss = nn.SmoothL1Loss()
+        self.MSELoss = nn.MSELoss()
+        self.RecLossFunc = self.ChoiceOfRecLossFnc(RecLossFunc)
+        self.Accuracy = []
+        self.a_1 = 0.5
+        self.a_2 = 0.5
+        self.cl_1 = []
+        self.cl_2 = []
+        self.alpha = Parameter(torch.Tensor(5).fill_(1 / 5), requires_grad=False).to(
+            self.device)
+        self.autoencoder_1 = VAE(self.dimension1, self.hidden_size,self.latent_size).to(self.device)
+        self.autoencoder_2 = VAE(self.dimension2, self.hidden_size,self.latent_size).to(self.device)
+
+    def FirstPeriod(self):
+        classifier_1 = MLP(self.latent_size,self.classes).to(self.device)
+        optimizer_classifier_1 = torch.optim.Adam(classifier_1.parameters(),self.lr)
+
+        optimizer_autoencoder_1 = torch.optim.Adam(self.autoencoder_1.parameters(), self.lr)
+        # eta = -8 * math.sqrt(1 / math.log(self.t))
+
+        for (i, x) in enumerate(self.x_S1):
+
+            self.i = i
+            x1 = x.unsqueeze(0).float().to(self.device)
+            x1 = normal(x1)
+            y1 = self.y_S1[i].long().to(self.device)
+
+            if self.i < self.B:  # Before evolve
+                encoded, decoded, mu, logVar = self.autoencoder_1(x1)
+                y_hat, loss_1 = self.HB_Fit(classifier_1, encoded, y1, optimizer_classifier_1)
+
+                loss_2 = self.VAE_Loss(logVar, mu, decoded, x1,optimizer_autoencoder_1)
+
+            else:
+                x2 = self.x_S2[self.i].unsqueeze(0).float().to(self.device)
+                if i == self.B:
+                    classifier_2 = copy.deepcopy(classifier_1)
+                    torch.save(classifier_1.state_dict(),
+                               './data/' + self.path + '/net_model1.pth')
+                    optimizer_classifier_2 = torch.optim.Adam(classifier_2.parameters(), 0.001)
+                    optimizer_autoencoder_2 = torch.optim.Adam(self.autoencoder_2.parameters(), 0.0001)
+
+                encoded_1, decoded_1, mu_1, logVar_1 = self.autoencoder_1(x1)
+                encoded_2, decoded_2, mu_2, logVar_2 = self.autoencoder_2(x2)
+
+                y_hat_2, loss_classifier_2 = self.HB_Fit(classifier_2,
+                                                         encoded_2, y1, optimizer_classifier_2)
+                y_hat_1, loss_classifier_1 = self.HB_Fit(classifier_1,
+                                                         encoded_1, y1, optimizer_classifier_1)
+
+                y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
+
+                self.cl_1.append(loss_classifier_1)
+                self.cl_2.append(loss_classifier_2)
+                if len(self.cl_1) == 1000:
+                    self.cl_1.pop(0)
+                    self.cl_2.pop(0)
+
+                try:
+                    a_cl_1 = math.exp(self.eta * sum(self.cl_1))
+                    a_cl_2 = math.exp(self.eta * sum(self.cl_2))
+                    self.a_1 = (a_cl_1) / (a_cl_2 + a_cl_1)
+
+                except OverflowError:
+                    self.a_1 = float('inf')
+
+                self.a_2 = 1 - self.a_1
+
+                optimizer_autoencoder_2.zero_grad()
+                kl_divergence = 0.5 * torch.sum(-1 - logVar_2 + mu_2.pow(2) + logVar_2.exp())
+                rec_loss = F.binary_cross_entropy(decoded_2, x2, size_average=False) + kl_divergence
+                loss_autoencoder_2 =  rec_loss + self.SmoothL1Loss(encoded_2, encoded_1)
+
+                loss_autoencoder_2.backward(retain_graph=True)
+                optimizer_autoencoder_2.step()
+
+            _, predicted = torch.max(y_hat.data, 1)
+            self.correct += (predicted == y1).item()
+            if i == 0:
+                print("finish 0")
+            if (i + 1) % 100 == 0:
+                print("step : %d" % (i + 1), end=", ")
+                print("correct: %d" % (self.correct))
+            if (i + 1) % 500 == 0:
+                self.accuracy = self.correct / 500
+                self.Accuracy.append(self.accuracy)
+                self.correct = 0
+                print("Accuracy: ", self.accuracy)
+
+        torch.save(classifier_2.state_dict(), './data/' + self.path + '/net_model2.pth')
+
+    def SecondPeriod(self):
+        print('use FESA when i<T1')
+        self.FirstPeriod()
+        self.correct = 0
+        net_model1 = self.loadmodel('./data/' + self.path + '/net_model1.pth')
+        net_model2 = self.loadmodel('./data/' + self.path + '/net_model2.pth')
+
+        optimizer_classifier_1 = torch.optim.Adam(net_model1.parameters(), self.lr)
+        optimizer_classifier_2 = torch.optim.Adam(net_model2.parameters(), self.lr)
+        optimizer_autoencoder_2 = torch.optim.Adam(self.autoencoder_2.parameters(), 0.0001)
+        data_2 = self.x_S2[:self.B]
+        label_2 = self.y_S1[:self.B]
+
+        self.a_1 = 0.8
+        self.a_2 = 0.2
+        self.cl_1 = []
+        self.cl_2 = []
+
+        # eta = -8 * math.sqrt(1 / math.log(self.B))
+        for (i, x) in enumerate(data_2):
+            x = x.unsqueeze(0).float().to(self.device)
+            self.i = i + self.T1
+            y1 = label_2[i].long().to(self.device)
+
+
+            encoded_2, decoded_2, mu, logVar  = self.autoencoder_2(x)
+
+            optimizer_autoencoder_2.zero_grad()
+            y_hat_2, loss_classifier_2 = self.HB_Fit(net_model2,
+                                                     encoded_2, y1, optimizer_classifier_2)
+
+            y_hat_1, loss_classifier_1 = self.HB_Fit(net_model1,
+                                                     encoded_2, y1, optimizer_classifier_1)
+
+            kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
+            loss = F.binary_cross_entropy(decoded_2, x, size_average=False) + kl_divergence
+            # Backpropagation based on the loss
+            loss.backward(retain_graph=True)
+            optimizer_autoencoder_2.step()
+
+            y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
+            self.cl_1.append(loss_classifier_1)
+            self.cl_2.append(loss_classifier_2)
+
+            if len(self.cl_1) == 1000:
+                self.cl_1.pop(0)
+                self.cl_2.pop(0)
+
+            try:
+                a_cl_1 = math.exp(self.eta * sum(self.cl_1))
+                a_cl_2 = math.exp(self.eta * sum(self.cl_2))
+                self.a_1 = (a_cl_1) / (a_cl_2 + a_cl_1)
+            except OverflowError:
+                self.a_1 = float('inf')
+
+            self.a_2 = 1 - self.a_1
+
+            _, predicted = torch.max(y_hat.data, 1)
+            self.correct += (predicted == y1).item()
+            if i == 0:
+                print("finish 1")
+            if (i + 1) % 100 == 0:
+                print("step : %d" % (i + 1), end=", ")
+                print("correct: %d" % (self.correct))
+
+            if (i + 1) % 500 == 0:
+                self.accuracy = self.correct / 500
+                self.Accuracy.append(self.accuracy)
+                self.correct = 0
+                print("Accuracy: ", self.accuracy)
+
+        torch.save(self.Accuracy, './data/' + self.path + '/Accuracy')
+
+    def zero_grad(self, model):
+        for child in model.children():
+            for param in child.parameters():
+                if param.grad is not None:
+                    # param.grad.detach_()
+                    param.grad.zero_()  # data.fill_(0)
+    def loadmodel(self, path):
+        net_model = MLP(20,6).to(self.device)
+        pretrain_dict = torch.load(path)
+        model_dict = net_model.state_dict()
+        pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict}
+        model_dict.update(pretrain_dict)
+        net_model.load_state_dict(model_dict)
+        net_model.to(self.device)
+        return net_model
+
+    def ChoiceOfRecLossFnc(self, name):
+        if name == 'Smooth':
+            return nn.SmoothL1Loss()
+        elif name == 'KL':
+            return nn.KLDivLoss()
+        elif name == 'BCE':
+            return nn.BCELoss()
+        else:
+            print('Enter correct loss function name!')
+
+    def VAE_Loss(self, logVar, mu, decoded,x,optimizer):
+        optimizer.zero_grad()
+        kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
+        loss = F.binary_cross_entropy(decoded,x, size_average=False) + kl_divergence
+        # Backpropagation based on the loss
+        loss.backward(retain_graph=True)
+        optimizer.step()
+
+        return loss
+
+    def HB_Fit(self, model, X, Y, optimizer):  # hedge backpropagation
+        predictions_per_layer = model.forward(X)
+
+        losses_per_layer = []
+
+        for out in predictions_per_layer:
+            loss = self.CELoss(out, Y)
+
+            losses_per_layer.append(loss)
+
+        output = torch.empty_like(predictions_per_layer[0])
+        for i, out in enumerate(predictions_per_layer):
+            output += self.alpha[i] * out
+
+        for i in range(5):  # First 6 are shallow and last 2 are deep
+
+            if i == 0:
+                alpha_sum_1 = self.alpha[i]
+            else:
+                alpha_sum_1 += self.alpha[i]
+
+        Loss_sum = torch.zeros_like(losses_per_layer[0])
+
+        for i, loss in enumerate(losses_per_layer):
+            loss_ = (self.alpha[i] / alpha_sum_1) * loss
+            Loss_sum += loss_
+        optimizer.zero_grad()
+
+        Loss_sum.backward(retain_graph=True)
+        optimizer.step()
+
+        for i in range(len(losses_per_layer)):
+            self.alpha[i] *= torch.pow(self.b, losses_per_layer[i])
+            self.alpha[i] = torch.max(self.alpha[i], self.s / 5)
+            self.alpha[i] = torch.min(self.alpha[i], self.m)  # exploration-exploitation
+
+        z_t = torch.sum(self.alpha)
+        self.alpha = Parameter(self.alpha / z_t, requires_grad=False).to(self.device)
+
         return output, Loss_sum

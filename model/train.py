@@ -14,7 +14,7 @@ def setup_seed(seed):
 
 def main():
     parser = argparse.ArgumentParser(description="Options")
-    parser.add_argument('-DataName', action='store', dest='DataName', default='svhn')
+    parser.add_argument('-DataName', action='store', dest='DataName', default='mnist')
     parser.add_argument('-AutoEncoder', action='store', dest='AutoEncoder', default='VAE')
     parser.add_argument('-beta', action='store', dest='beta', default=0.9)
     parser.add_argument('-eta', action='store', dest='eta', default=-0.01)
@@ -42,15 +42,20 @@ class OLD3S:
         if self.datasetname == 'cifar':
             print('cifar trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadcifar()
-            train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 50000, 5000,'parameter_cifar')
+            train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 50000, 5000,'parameter_cifar')
             train.SecondPeriod()
         elif self.datasetname == 'svhn':
             print('svhn trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadsvhn()
-            if self.autoencoder == 'AE':
-                train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
-            else:
-                train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 73257, 7257, 'parameter_svhn')
+            train = OLD3S_Deep(x_S1, y_S1, x_S2, y_S2, 73257, 7257,'parameter_svhn')
+            train.SecondPeriod()
+        elif self.datasetname == 'mnist':
+            print('mnist trainning starts')
+            x_S1, y_S1, x_S2, y_S2 = loadmnist()
+            #train = OLD3S_Mnist(x_S1, y_S1, x_S2, y_S2, 60000, 6000, 'parameter_mnist')
+
+            train = OLD3S_Reuter_VAE(x_S1, y_S1, x_S2, y_S2, 60000, 6000,dimension1 = 784, dimension2 = 784,
+                                hidden_size = 128, latent_size = 20, classes = 10, path = 'parameter_mnist')
             train.SecondPeriod()
         elif self.datasetname == 'magic':
             print('magic trainning starts')
