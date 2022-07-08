@@ -103,6 +103,60 @@ class ConvVAE(nn.Module):
         #recon_x = self.decoder(decode.view(-1,1,32,32))
         return z, recon_x, mu, logvar
 
+class VAE_Deep(nn.Module):
+    def __init__(self):
+        super(VAE_Deep, self).__init__()
+
+
+
+        self.encoder = nn.Sequential(
+            nn.Conv2d(3, 8, 3, 1,1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.Conv2d(8, 8, 3, 1, 1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.Conv2d(8, 1, 3, 1, 1),
+            nn.BatchNorm2d(1),
+            nn.ReLU(),
+        )
+
+        self.decoder = nn.Sequential(
+            nn.ConvTranspose2d(1, 8, 3, 1, 1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.ConvTranspose2d(8, 8, 3, 1, 1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.ConvTranspose2d(8, 3, 3, 1,1),
+            nn.BatchNorm2d(3),
+            nn.Sigmoid()
+
+        )
+
+        self.fc1 = nn.Linear(32, 32)
+        self.fc2 = nn.Linear(32, 32)
+
+
+
+    def reparameterise(self, mu, logvar):
+        epsilon = torch.randn_like(mu)
+        return mu + epsilon * torch.exp(logvar / 2)
+
+    def forward(self, x):
+        batch = x.size(0)
+
+        x = self.encoder(x)
+
+        mu = self.fc1(x)
+        logvar = self.fc2(x)
+        z = self.reparameterise(mu, logvar)
+
+        recon_x = self.decoder(z)
+
+        #recon_x = self.decoder(decode.view(-1,1,32,32))
+        return z, recon_x, mu, logvar
+
 class VAE_Mnist(nn.Module):
 
     def __init__(self, input_dim, h_dim, z_dim):
@@ -143,6 +197,7 @@ class VAE_Mnist(nn.Module):
         h = F.relu(self.fc4(z))
         x_hat = torch.sigmoid(self.fc5(h))
         return x_hat
+
 class VAE_Shallow(nn.Module):
 
     def __init__(self, input_dim, h_dim, z_dim):
@@ -183,7 +238,7 @@ class VAE_Shallow(nn.Module):
         return x_hat
 
 def train():
-    epochs = 10
+    epochs = 5
     batch_size = 512
 
     best_loss = 1e9
@@ -198,8 +253,7 @@ def train():
         # Simply put the size you want in Resize (can be tuple for height, width)
         transform=torchvision.transforms.Compose(
             [
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.ColorJitter(hue=0.3),
+
                 torchvision.transforms.ToTensor()]
         )
     )
@@ -210,8 +264,7 @@ def train():
         # Simply put the size you want in Resize (can be tuple for height, width)
         transform=torchvision.transforms.Compose(
             [
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.ColorJitter(hue=0.3),
+
                 torchvision.transforms.ToTensor()]
         )
     )'''
@@ -227,6 +280,7 @@ def train():
         download=True,
         transform=transforms.ToTensor()
     )'''
+    x1,y1,x2,y2 = loadreuter('EN_FR')
     kl_loss = lambda mu, logvar: -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     recon_loss = lambda recon_x, x: F.mse_loss(recon_x, x, size_average=False)
 
@@ -235,21 +289,22 @@ def train():
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = VAE(2000,128,20)
+    model = VAE_Shallow(2500,1024,128)
     model.to(device)
-    x1, y1,x2,y2 = loadreuter('EN_FR')
+
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     for epoch in range(epochs):
         print(f"Epoch {epoch}")
         model.train()
         train_loss = 0.
-        train_num = len(x1)
+        train_num = len(x2)
 
-        for idx, x in enumerate(x1):
+        for idx, x in enumerate(x2):
 
             batch = x.size(0)
             x = x.to(device)
+
             _, recon_x, mu, logvar = model(x)
             recon = recon_loss(recon_x, x)
             kl = kl_loss(mu, logvar)
@@ -270,10 +325,10 @@ def train():
     valid_loss = 0.
     valid_recon = 0.
     valid_kl = 0.
-    valid_num = len(x1)
+    valid_num = len(x2)
     model.eval()
     with torch.no_grad():
-        for idx, x  in enumerate(x1):
+        for idx, x  in enumerate(x2):
             x = x.to(device)
             _, recon_x, mu, logvar = model(x)
             recon = recon_loss(recon_x, x)
@@ -292,7 +347,7 @@ def train():
             best_loss = valid_loss
             best_epoch = epoch
 
-            torch.save(model.state_dict(), 'D:/pycharmproject/OLD3S/model/data/parameter_enfr/vae_model_1')
+            torch.save(model.state_dict(), 'E:/pycharm/OLD3S/model/data/parameter_enfr/vae_model_2')
             print("Model saved")
 
 def test():
@@ -303,25 +358,17 @@ def test():
         download=True,
         transform=transforms.ToTensor()
     )'''
-    '''pokemon_valid = torchvision.datasets.CIFAR10(
+    pokemon_valid = torchvision.datasets.CIFAR10(
         root='./data',
         train=False,
         download=True,
         transform=transforms.ToTensor()
-    )'''
-    pokemon_valid = torchvision.datasets.FashionMNIST(
-        root='./data',
-        download=False,
-        train=True,
-        # Simply put the size you want in Resize (can be tuple for height, width)
-        transform=torchvision.transforms.Compose(
-            [torchvision.transforms.ToTensor()]
-        )
     )
+
     test_loader = DataLoader(pokemon_valid, batch_size=1, shuffle=False)
 
-    state = torch.load('best_model_mnist')
-    model = VAE(784,128,20)
+    state = torch.load('E:/pycharm/OLD3S/model/data/parameter_cifar/vae_model_1')
+    model = VAE_Deep()
     model.load_state_dict(state)
 
 

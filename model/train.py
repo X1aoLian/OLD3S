@@ -14,7 +14,7 @@ def setup_seed(seed):
 
 def main():
     parser = argparse.ArgumentParser(description="Options")
-    parser.add_argument('-DataName', action='store', dest='DataName', default='mnist')
+    parser.add_argument('-DataName', action='store', dest='DataName', default='enfr')
     parser.add_argument('-AutoEncoder', action='store', dest='AutoEncoder', default='VAE')
     parser.add_argument('-beta', action='store', dest='beta', default=0.9)
     parser.add_argument('-eta', action='store', dest='eta', default=-0.01)
@@ -52,10 +52,11 @@ class OLD3S:
         elif self.datasetname == 'mnist':
             print('mnist trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadmnist()
-            #train = OLD3S_Mnist(x_S1, y_S1, x_S2, y_S2, 60000, 6000, 'parameter_mnist')
-
-            train = OLD3S_Mnist_VAE(x_S1, y_S1, x_S2, y_S2, 60000, 6000,dimension1 = 784, dimension2 = 784,
+            if self.autoencoder == 'VAE':
+                train = OLD3S_Mnist_VAE(x_S1, y_S1, x_S2, y_S2, 60000, 6000,dimension1 = 784, dimension2 = 784,
                                 hidden_size = 128, latent_size = 20, classes = 10, path = 'parameter_mnist')
+            else:
+                train = OLD3S_Mnist(x_S1, y_S1, x_S2, y_S2, 60000, 6000, 'parameter_mnist')
             train.SecondPeriod()
         elif self.datasetname == 'magic':
             print('magic trainning starts')
@@ -70,9 +71,11 @@ class OLD3S:
         elif self.datasetname == 'enfr':
             print('reuter-en-fr trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadreuter('EN_FR')
-            train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500,
-                                hidden_size = 128, latent_size = 20, classes = 6, path = 'parameter_enfr')
-            #train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500, 'parameter_enfr')
+            if self.autoencoder == 'VAE':
+                train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500,
+                                hidden_size = 1024, latent_size = 128, classes = 6, path = 'parameter_enfr')
+            else:
+                train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758, 2000, 2500, 'parameter_enfr')
             train.SecondPeriod()
         elif self.datasetname == 'enit':
             print('reuter-en-it trainning starts')

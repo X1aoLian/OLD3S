@@ -385,7 +385,7 @@ class OLD3S_Mnist_VAE:
 
                 optimizer_autoencoder_2.zero_grad()
                 kl_divergence = 0.5 * torch.sum(-1 - logVar_2 + mu_2.pow(2) + logVar_2.exp())
-                rec_loss = F.binary_cross_entropy(decoded_2.view(1,28,28), x2, size_average=False) + kl_divergence
+                rec_loss = F.binary_cross_entropy(decoded_2.reshape(1,28,28), x2, size_average=False) + kl_divergence
                 loss_autoencoder_2 =  rec_loss + self.SmoothL1Loss(encoded_2, encoded_1)
                 loss_autoencoder_2.backward(retain_graph=True)
                 optimizer_autoencoder_2.step()
@@ -502,7 +502,7 @@ class OLD3S_Mnist_VAE:
     def VAE_Loss(self, logVar, mu, decoded,x,optimizer):
         optimizer.zero_grad()
         kl_divergence = 0.5 * torch.sum(-1 - logVar + mu.pow(2) + logVar.exp())
-        ce = F.binary_cross_entropy(decoded.view(1,28,28),x, size_average=False)
+        ce = F.binary_cross_entropy(decoded.reshape(1,28,28),x, size_average=False)
         loss = ce + kl_divergence
         # Backpropagation based on the loss
         loss.backward(retain_graph=True)
