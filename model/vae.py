@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from loaddatasets import loadcifar
+from loaddatasets import *
 from torch import nn
 from torch import optim
 import torch.nn.functional as F
@@ -103,11 +103,11 @@ class ConvVAE(nn.Module):
         #recon_x = self.decoder(decode.view(-1,1,32,32))
         return z, recon_x, mu, logvar
 
-class VAE(nn.Module):
+class VAE_Mnist(nn.Module):
 
     def __init__(self, input_dim, h_dim, z_dim):
         # 调用父类方法初始化模块的state
-        super(VAE, self).__init__()
+        super(VAE_Mnist, self).__init__()
 
         self.input_dim = input_dim
         self.h_dim = h_dim
@@ -143,10 +143,47 @@ class VAE(nn.Module):
         h = F.relu(self.fc4(z))
         x_hat = torch.sigmoid(self.fc5(h))
         return x_hat
+class VAE_Shallow(nn.Module):
 
+    def __init__(self, input_dim, h_dim, z_dim):
+        # 调用父类方法初始化模块的state
+        super(VAE_Shallow, self).__init__()
+
+        self.input_dim = input_dim
+        self.h_dim = h_dim
+        self.z_dim = z_dim
+
+        # 编码器 ： [b, input_dim] => [b, z_dim]
+        self.fc1 = nn.Linear(input_dim, h_dim)  # 第一个全连接层
+        self.fc2 = nn.Linear(h_dim, z_dim)  # mu
+        self.fc3 = nn.Linear(h_dim, z_dim)  # log_var
+
+        # 解码器 ： [b, z_dim] => [b, input_dim]
+        self.fc4 = nn.Linear(z_dim, h_dim)
+        self.fc5 = nn.Linear(h_dim, input_dim)
+
+    def forward(self, x):
+        mu, log_var = self.encode(x)
+        sampled_z = self.reparameterization(mu, log_var)
+        x_hat = self.decode(sampled_z)
+        return sampled_z, x_hat, mu, log_var
+
+    def encode(self, x):
+        h = F.relu(self.fc1(x))
+        mu = self.fc2(h)
+        log_var = self.fc3(h)
+        return mu, log_var
+    def reparameterization(self, mu, log_var):
+        sigma = torch.exp(log_var * 0.5)
+        eps = torch.randn_like(sigma)
+        return mu + sigma * eps
+    def decode(self, z):
+        h = F.relu(self.fc4(z))
+        x_hat = torch.sigmoid(self.fc5(h))
+        return x_hat
 
 def train():
-    epochs = 100
+    epochs = 10
     batch_size = 512
 
     best_loss = 1e9
@@ -154,13 +191,16 @@ def train():
 
     valid_losses = []
     train_losses = []
-    pokemon_train = torchvision.datasets.FashionMNIST(
+    '''pokemon_train = torchvision.datasets.FashionMNIST(
         root='./data',
         download=True,
         train=True,
         # Simply put the size you want in Resize (can be tuple for height, width)
         transform=torchvision.transforms.Compose(
-            [torchvision.transforms.ToTensor()]
+            [
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ColorJitter(hue=0.3),
+                torchvision.transforms.ToTensor()]
         )
     )
     pokemon_valid = torchvision.datasets.FashionMNIST(
@@ -169,9 +209,12 @@ def train():
         train=False,
         # Simply put the size you want in Resize (can be tuple for height, width)
         transform=torchvision.transforms.Compose(
-            [torchvision.transforms.ToTensor()]
+            [
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ColorJitter(hue=0.3),
+                torchvision.transforms.ToTensor()]
         )
-    )
+    )'''
     '''pokemon_train =  torchvision.datasets.CIFAR10(
         root='./data',
         train=True,
@@ -187,28 +230,28 @@ def train():
     kl_loss = lambda mu, logvar: -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     recon_loss = lambda recon_x, x: F.mse_loss(recon_x, x, size_average=False)
 
-    train_loader = DataLoader(pokemon_train, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(pokemon_valid, batch_size=batch_size, shuffle=False)
+    #train_loader = DataLoader(pokemon_train, batch_size=batch_size, shuffle=True)
+    #test_loader = DataLoader(pokemon_valid, batch_size=batch_size, shuffle=False)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    model = VAE(784,128,20)
+    model = VAE(2000,128,20)
     model.to(device)
-
+    x1, y1,x2,y2 = loadreuter('EN_FR')
     optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     for epoch in range(epochs):
         print(f"Epoch {epoch}")
         model.train()
         train_loss = 0.
-        train_num = len(train_loader.dataset)
+        train_num = len(x1)
 
-        for idx, (x, label) in enumerate(train_loader):
+        for idx, x in enumerate(x1):
 
             batch = x.size(0)
             x = x.to(device)
             _, recon_x, mu, logvar = model(x)
-            recon = recon_loss(recon_x.view(-1,1,28,28), x)
+            recon = recon_loss(recon_x, x)
             kl = kl_loss(mu, logvar)
 
             loss = recon + kl
@@ -227,13 +270,13 @@ def train():
     valid_loss = 0.
     valid_recon = 0.
     valid_kl = 0.
-    valid_num = len(test_loader.dataset)
+    valid_num = len(x1)
     model.eval()
     with torch.no_grad():
-        for idx, (x, label) in enumerate(test_loader):
+        for idx, x  in enumerate(x1):
             x = x.to(device)
             _, recon_x, mu, logvar = model(x)
-            recon = recon_loss(recon_x.view(-1,1,28,28), x)
+            recon = recon_loss(recon_x, x)
             kl = kl_loss(mu, logvar)
             loss = recon + kl
             valid_loss += loss.item()
@@ -249,7 +292,7 @@ def train():
             best_loss = valid_loss
             best_epoch = epoch
 
-            torch.save(model.state_dict(), 'best_model_mnist')
+            torch.save(model.state_dict(), 'D:/pycharmproject/OLD3S/model/data/parameter_enfr/vae_model_1')
             print("Model saved")
 
 def test():

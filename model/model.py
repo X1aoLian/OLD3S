@@ -781,7 +781,7 @@ class OLD3S_Reuter:
 
 class OLD3S_Mnist:
     def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, path, lr=0.01, b=0.9, eta = -0.01, s=0.008, m=0.9,
-                 spike=9e-5, thre=10000, RecLossFunc = 'KL'):
+                 spike=9e-5, thre=10000, RecLossFunc = 'Smooth'):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.autoencoder = AutoEncoder_Mnist().to(self.device)
         self.autoencoder_2 = AutoEncoder_Mnist().to(self.device)

@@ -54,7 +54,7 @@ class OLD3S:
             x_S1, y_S1, x_S2, y_S2 = loadmnist()
             #train = OLD3S_Mnist(x_S1, y_S1, x_S2, y_S2, 60000, 6000, 'parameter_mnist')
 
-            train = OLD3S_Reuter_VAE(x_S1, y_S1, x_S2, y_S2, 60000, 6000,dimension1 = 784, dimension2 = 784,
+            train = OLD3S_Mnist_VAE(x_S1, y_S1, x_S2, y_S2, 60000, 6000,dimension1 = 784, dimension2 = 784,
                                 hidden_size = 128, latent_size = 20, classes = 10, path = 'parameter_mnist')
             train.SecondPeriod()
         elif self.datasetname == 'magic':
@@ -70,7 +70,9 @@ class OLD3S:
         elif self.datasetname == 'enfr':
             print('reuter-en-fr trainning starts')
             x_S1, y_S1, x_S2, y_S2 = loadreuter('EN_FR')
-            train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500, 'parameter_enfr')
+            train = OLD3S_Shallow_VAE(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500,
+                                hidden_size = 128, latent_size = 20, classes = 6, path = 'parameter_enfr')
+            #train = OLD3S_Reuter(x_S1, y_S1, x_S2, y_S2, 18758, 2758,2000, 2500, 'parameter_enfr')
             train.SecondPeriod()
         elif self.datasetname == 'enit':
             print('reuter-en-it trainning starts')
