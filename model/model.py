@@ -16,7 +16,7 @@ def normal(t):
 
 class OLD3S_Deep:
     def __init__(self, data_S1, label_S1, data_S2, label_S2, T1, t, path, lr=0.01, b=0.9, eta = -0.01, s=0.008, m=0.9,
-                 spike=9e-5, thre=10000, RecLossFunc = 'KL'):
+                 spike=9e-5, thre=10000, RecLossFunc = 'Smooth'):
         self.device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         self.autoencoder = AutoEncoder_Deep().to(self.device)
         self.autoencoder_2 = AutoEncoder_Deep().to(self.device)
@@ -75,7 +75,7 @@ class OLD3S_Deep:
                 optimizer_2.zero_grad()
                 encoded, decoded = self.autoencoder(x1)
                 loss_1, y_hat = self.HB_Fit(self.net_model1, encoded, y, optimizer_1)
-                loss_2 = self.RecLossFunc(torch.sigmoid(decoded), x1)
+                loss_2 = self.BCELoss(torch.sigmoid(decoded), x1)
                 loss_2.backward()
                 optimizer_2.step()
 
@@ -112,7 +112,7 @@ class OLD3S_Deep:
                 self.a_2 = 1 - self.a_1
 
                 optimizer_2_2.zero_grad()
-                loss_2_1 = self.RecLossFunc(torch.sigmoid(x2), decoded_2)
+                loss_2_1 = self.BCELoss(torch.sigmoid(x2), decoded_2)
                 loss_2_2 = self.RecLossFunc(encoded_2, encoded_1)
                 loss_2 = loss_2_1 + loss_2_2
                 loss_2.backward(retain_graph=True)
@@ -155,7 +155,7 @@ class OLD3S_Deep:
             optimizer_5.zero_grad()
             loss_4, y_hat_2 = self.HB_Fit(net_model2, encoded, y, optimizer_4)
             loss_3, y_hat_1 = self.HB_Fit(net_model1, encoded, y, optimizer_3)
-            loss_5 = self.RecLossFunc(torch.sigmoid(x), decoded)
+            loss_5 = self.BCELoss(torch.sigmoid(x), decoded)
             loss_5.backward()
             optimizer_5.step()
             y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
@@ -318,7 +318,7 @@ class OLD3S_Shallow:
                 y_hat, loss_classifier_1 = self.HB_Fit(classifier_1,
                                                        encoded_1, y1, optimizer_classifier_1)
 
-                loss_autoencoder_1 = self.RecLossFunc(torch.sigmoid(decoded_1), x1)
+                loss_autoencoder_1 = self.BCELoss(torch.sigmoid(decoded_1), x1)
                 loss_autoencoder_1.backward()
                 optimizer_autoencoder_1.step()
 
@@ -359,8 +359,8 @@ class OLD3S_Shallow:
                 self.a_2 = 1 - self.a_1
 
                 optimizer_autoencoder_2.zero_grad()
-                loss_2_0 = self.RecLossFun(torch.sigmoid(decoded_2), x2)
-                loss_2_1 = self.RecLossFun(encoded_2, encoded_1)
+                loss_2_0 = self.BCELoss(torch.sigmoid(decoded_2), x2)
+                loss_2_1 = self.RecLossFunc(encoded_2, encoded_1)
                 loss_autoencoder_2 = loss_2_0 + loss_2_1
                 loss_autoencoder_2.backward()
                 optimizer_autoencoder_2.step()
@@ -420,7 +420,7 @@ class OLD3S_Shallow:
             y_hat_1, loss_classifier_1 = self.HB_Fit(net_model1,
                                                      encoded_2, y1, optimizer_classifier_1_FES)
 
-            loss_autoencoder_2 = self.RecLossFun(torch.sigmoid(decoded_2), x)
+            loss_autoencoder_2 = self.BCELoss(torch.sigmoid(decoded_2), x)
             loss_autoencoder_2.backward()
             optimizer_autoencoder_2_FES.step()
             y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
@@ -579,7 +579,7 @@ class OLD3S_Reuter:
                 y_hat, loss_classifier_1 = self.HB_Fit(classifier_1,
                                                        encoded_1, y1, optimizer_classifier_1)
 
-                loss_autoencoder_1 = self.RecLossFunc(torch.sigmoid(decoded_1), x1)
+                loss_autoencoder_1 = self.BCELoss(torch.sigmoid(decoded_1), x1)
                 loss_autoencoder_1.backward()
                 optimizer_autoencoder_1.step()
 
@@ -621,7 +621,7 @@ class OLD3S_Reuter:
 
                 optimizer_autoencoder_2.zero_grad()
                 loss_2_0 = self.BCELoss(torch.sigmoid(decoded_2), x2)
-                loss_2_1 = self.SmoothL1Loss(encoded_2, encoded_1)
+                loss_2_1 = self.RecLossFunc(encoded_2, encoded_1)
                 loss_autoencoder_2 = loss_2_0 + loss_2_1
                 loss_autoencoder_2.backward()
                 optimizer_autoencoder_2.step()
@@ -840,7 +840,7 @@ class OLD3S_Mnist:
                 optimizer_2.zero_grad()
                 encoded, decoded = self.autoencoder(x1)
                 loss_1, y_hat = self.HB_Fit(self.net_model1, encoded, y, optimizer_1)
-                loss_2 = self.RecLossFunc(torch.sigmoid(decoded), x1)
+                loss_2 = self.BCELoss(torch.sigmoid(decoded), x1)
                 loss_2.backward()
                 optimizer_2.step()
 
@@ -878,7 +878,7 @@ class OLD3S_Mnist:
                 self.a_2 = 1 - self.a_1
 
                 optimizer_2_2.zero_grad()
-                loss_2_1 = self.RecLossFunc(torch.sigmoid(x2), decoded_2)
+                loss_2_1 = self.BCELoss(torch.sigmoid(x2), decoded_2)
                 loss_2_2 = self.RecLossFunc(encoded_2, encoded_1)
                 loss_2 = loss_2_1 + loss_2_2
                 loss_2.backward(retain_graph=True)
@@ -922,7 +922,7 @@ class OLD3S_Mnist:
             optimizer_5.zero_grad()
             loss_4, y_hat_2 = self.HB_Fit(net_model2, encoded, y, optimizer_4)
             loss_3, y_hat_1 = self.HB_Fit(net_model1, encoded, y, optimizer_3)
-            loss_5 = self.RecLossFunc(torch.sigmoid(x), decoded)
+            loss_5 = self.BCELoss(torch.sigmoid(x), decoded)
             loss_5.backward()
             optimizer_5.step()
             y_hat = self.a_1 * y_hat_1 + self.a_2 * y_hat_2
