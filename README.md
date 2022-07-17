@@ -49,9 +49,11 @@ pip install sklearn
 ```
 
 ## Run
+Results of Experiments are under default parameters.
 Default parameters are shown as following:
 ```
 conda activate OLDS
+cd model
 python train.py -DataName='cifar' -AutoEncoder='AE' -beta=0.9 -eta=-0.01 -learningrate=0.001 -RecLossFunc='Smooth' 
 ```
 Choices of DataName, AutoEncoder and RecLossFunc are shown as following:  
