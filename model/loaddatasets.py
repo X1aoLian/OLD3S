@@ -36,7 +36,8 @@ def loadcifar():
     x_S1 = torch.transpose(x_S1, 2, 1)
     x_S2 = torch.transpose(x_S2, 3, 2)
     x_S2 = torch.transpose(x_S2, 2, 1)
-
+    x_S2 = transforms.ColorJitter(hue=0.3)(x_S2)
+        
     return x_S1, y_S1, x_S2, y_S2
 
 def loadsvhn():
@@ -50,6 +51,7 @@ def loadsvhn():
     )
     x_S1 = torch.Tensor(svhm_original.data)
     x_S2 = torch.Tensor(svhm_color.data)
+    x_S2 = transforms.ColorJitter(hue=0.3)(x_S2)
     y_S1, y_S2 = svhm_original.labels, svhm_color.labels
     for i in range(len(y_S1)):
         if y_S1[i] == 10:
@@ -143,6 +145,7 @@ def loadmnist():
     )
     x_S1 = mnist_original.data
     x_S2 = mnist_color.data
+    x_S2 = transforms.ColorJitter(hue=0.3)(x_S2)
     y_S1, y_S2 = mnist_original.targets, mnist_color.targets
     x_S1, y_S1 = shuffle(x_S1, y_S1, random_state=1000)
     x_S2, y_S2 = shuffle(x_S2, y_S2, random_state=1000)
